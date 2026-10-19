@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Sổ Cân Heo VU",
+    "slug": "so-can-lua-heo",
+    "version": "1.0.5",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "vn.canluaheo.pro",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "vn.canluaheo.pro",
+      "versionCode": 5,
+      "adaptiveIcon": {
+        "backgroundColor": "#00B074",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "Sổ Cân Heo VU",
+      "shortName": "Cân Heo VU",
+      "display": "standalone",
+      "backgroundColor": "#FFFFFF",
+      "themeColor": "#00B074"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "423604db-1efb-4be5-8f97-6942224269f4"
+      }
+    },
+    "plugins": [
+      "expo-font",
+      "expo-status-bar"
+    ]
+  }
+}
