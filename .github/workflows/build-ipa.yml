@@ -111,6 +111,10 @@ jobs:
       - name: Generate iOS platform files & get packages
         run: |
           sed -i '' 's/intl: .*/intl: any/' pubspec.yaml
+          sed -i '' 's/body: const Center(/body: Center(/' lib/screens/home_screen.dart
+          sed -i '' 's/cardTheme: CardTheme(/cardTheme: CardThemeData(/' lib/theme/design_tokens.dart
+          sed -i '' 's/\.getSession(widget\.sessionId)/\.getSessionById(widget\.sessionId)/' lib/screens/weighing_screen.dart
+          sed -i '' 's/pw\.AxisAxisAlignment\.spaceBetween/pw\.MainAxisAlignment\.spaceBetween/' lib/services/export_service.dart
           flutter create . --project-name can_lua_heo_pro --platforms=ios
           flutter pub get
 
