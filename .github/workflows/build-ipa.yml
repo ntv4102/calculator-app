@@ -1,0 +1,131 @@
+name: Build Unsigned iOS IPA
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Chọn phiên bản cần tạo file IPA (expo / flutter / both)'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - expo
+          - flutter
+
+jobs:
+  build-expo-ipa:
+    name: Build Expo IPA (Sổ Cân Heo VU)
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'both' || inputs.target == 'expo' }}
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: expo-app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: expo-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Sanitize app.json plugins for Expo Prebuild
+        run: |
+          node -e '
+            const fs = require("fs");
+            const appJson = JSON.parse(fs.readFileSync("app.json", "utf8"));
+            if (Array.isArray(appJson.expo?.plugins)) {
+              appJson.expo.plugins = appJson.expo.plugins.filter(p => {
+                const name = Array.isArray(p) ? p[0] : p;
+                if (name === "expo-status-bar" && !fs.existsSync("node_modules/expo-status-bar/app.plugin.js")) {
+                  console.log("Removing expo-status-bar from plugins (no config plugin needed)");
+                  return false;
+                }
+                return true;
+              });
+              fs.writeFileSync("app.json", JSON.stringify(appJson, null, 2));
+            }
+          '
+
+      - name: Run Expo Prebuild (Generate ios/ directory)
+        env:
+          CI: '1'
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Build Unsigned Release .app with Xcode
+        run: |
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -n 1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "Building workspace: $WORKSPACE | scheme: $SCHEME"
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath ios/build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            build
+
+      - name: Package .app into Unsigned .ipa
+        run: |
+          mkdir -p Payload
+          APP_PATH=$(ls -d ios/build/Build/Products/Release-iphoneos/*.app | head -n 1)
+          echo "Packaging $APP_PATH into Payload/"
+          cp -r "$APP_PATH" Payload/
+          zip -qq -r SoCanHeoVU-Expo-unsigned.ipa Payload
+
+      - name: Upload Expo IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SoCanHeoVU-Expo-IPA
+          path: expo-app/SoCanHeoVU-Expo-unsigned.ipa
+          if-no-files-found: error
+
+  build-flutter-ipa:
+    name: Build Flutter IPA (Cân Lúa & Cân Heo Pro)
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'both' || inputs.target == 'flutter' }}
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Generate iOS platform files & get packages
+        run: |
+          sed -i '' 's/intl: .*/intl: any/' pubspec.yaml
+          flutter create . --project-name can_lua_heo_pro --platforms=ios
+          flutter pub get
+
+      - name: Build Flutter iOS (No Codesign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Package Runner.app into Unsigned .ipa
+        run: |
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -qq -r CanLuaHeoPro-Flutter-unsigned.ipa Payload
+
+      - name: Upload Flutter IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CanLuaHeoPro-Flutter-IPA
+          path: CanLuaHeoPro-Flutter-unsigned.ipa
+          if-no-files-found: error
